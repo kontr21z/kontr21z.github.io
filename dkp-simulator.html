@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Симулятор по ДКП</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #f9fafb;
+  color: #111827;
+  min-height: 100vh;
+}
+
+.page { max-width: 1280px; margin: 0 auto; padding: 24px; }
+
+/* ─── HEADER ─── */
+.header { margin-bottom: 32px; }
+.header h1 { font-size: 28px; font-weight: 700; color: #111827; margin-bottom: 6px; letter-spacing: -0.02em; }
+.header p  { font-size: 15px; color: #6b7280; }
+
+/* ─── HINT ─── */
+.hint {
+  display: none;
+  align-items: flex-start;
+  gap: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: #1e40af;
+  line-height: 1.55;
+}
+.hint.visible { display: flex; }
+.hint-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.hint-close {
+  margin-left: auto; flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  color: #93c5fd; font-size: 18px; line-height: 1; padding: 0 2px;
+  transition: color 0.15s;
+}
+.hint-close:hover { color: #1e40af; }
+
+/* ─── CONTROLS ROW ─── */
+.controls-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+/* ─── CARD BASE ─── */
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+}
+.card-title { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ─── RATE CONTROL ─── */
+.rate-display { display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px; }
+.rate-value { font-size: 48px; font-weight: 700; color: #111827; line-height: 1; letter-spacing: -0.04em; transition: color 0.3s; }
+.rate-value.high { color: #dc2626; }
+.rate-value.mid  { color: #d97706; }
+.rate-unit  { font-size: 18px; color: #6b7280; font-weight: 500; }
+
+.rate-slider-wrap { margin-bottom: 6px; }
+.rate-slider {
+  width: 100%; -webkit-appearance: none;
+  height: 6px; background: #e5e7eb; border-radius: 3px; outline: none; cursor: pointer;
+}
+.rate-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 20px; height: 20px;
+  border-radius: 50%; background: #2563eb; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(37,99,235,0.4);
+  transition: box-shadow 0.2s;
+}
+.rate-slider::-webkit-slider-thumb:hover { box-shadow: 0 2px 8px rgba(37,99,235,0.6); }
+
+.rate-marks {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: #9ca3af; margin-bottom: 16px;
+}
+
+.rate-btns { display: grid; grid-template-columns: repeat(6,1fr); gap: 6px; }
+.rate-btn {
+  background: #f3f4f6; border: 1px solid #e5e7eb;
+  color: #374151; border-radius: 7px; padding: 8px 2px;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  font-family: 'Inter', sans-serif; transition: all 0.15s;
+  white-space: nowrap; text-align: center;
+}
+.rate-btn:hover { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+
+/* ─── TIME CONTROL ─── */
+.time-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.month-badge {
+  font-size: 13px; font-weight: 500; color: #fff;
+  background: #2563eb; border-radius: 20px; padding: 3px 12px;
+}
+.period-badge {
+  font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 20px; border: 1px solid;
+}
+.period-short { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.period-mid   { background: #fffbeb; color: #d97706; border-color: #fcd34d; }
+.period-long  { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+
+.speed-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 16px; }
+.speed-btn {
+  background: #f9fafb; border: 1.5px solid #e5e7eb;
+  border-radius: 10px; padding: 12px 6px; text-align: center;
+  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s;
+}
+.speed-btn:hover { border-color: #93c5fd; background: #eff6ff; }
+.speed-btn.active {
+  background: #eff6ff; border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+.speed-icon  { font-size: 20px; margin-bottom: 4px; }
+.speed-label { font-size: 14px; font-weight: 700; color: #111827; }
+.speed-desc  { font-size: 10px; color: #9ca3af; margin-top: 2px; }
+.speed-btn.active .speed-desc { color: #2563eb; }
+.speed-btn.active .speed-label { color: #2563eb; }
+
+.play-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s;
+  background: #2563eb; color: #fff; border: none;
+}
+.play-btn:hover { background: #1d4ed8; }
+.play-btn.playing { background: #dc2626; }
+.play-btn.playing:hover { background: #b91c1c; }
+
+/* ─── METRICS GRID ─── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.metric-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.metric-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: 12px 12px 0 0;
+}
+
+.metric-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.metric-icon-wrap {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.metric-change {
+  font-size: 12px; font-weight: 500; font-family: 'Inter', sans-serif;
+  display: flex; align-items: center; gap: 2px;
+  padding: 2px 8px; border-radius: 20px;
+}
+.change-up   { background: #fef2f2; color: #dc2626; }
+.change-down { background: #f0fdf4; color: #16a34a; }
+.change-flat { background: #f9fafb; color: #9ca3af; }
+
+.metric-name { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 4px; }
+.metric-value-row { display: flex; align-items: baseline; gap: 5px; }
+.metric-val  { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; color: #111827; }
+.metric-unit { font-size: 14px; color: #9ca3af; }
+.metric-sub  { font-size: 11px; color: #9ca3af; margin-top: 5px; }
+
+/* ─── CHART ─── */
+.chart-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.chart-title { font-size: 14px; font-weight: 600; color: #111827; }
+.chart-legend { display: flex; gap: 20px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ─── GOAL BANNER ─── */
+.goal-banner {
+  background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: 10px; padding: 14px 18px;
+  font-size: 14px; color: #1e40af; line-height: 1.55;
+  margin-bottom: 20px;
+}
+
+/* ─── FOOTER ─── */
+.footer { display: flex; justify-content: flex-end; }
+.reset-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: 1px solid #e5e7eb;
+  color: #6b7280; padding: 8px 16px; border-radius: 8px;
+  font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif;
+  transition: all 0.2s;
+}
+.reset-btn:hover { border-color: #fca5a5; color: #dc2626; }
+
+/* ─── COMPLETION OVERLAY ─── */
+.completion {
+  position: fixed; inset: 0;
+  background: rgba(17,24,39,0.7); backdrop-filter: blur(6px);
+  z-index: 200; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.4s;
+}
+.completion.show { opacity: 1; pointer-events: all; }
+.completion-box {
+  background: #fff; border-radius: 20px; padding: 48px 52px;
+  max-width: 540px; width: 90%; text-align: center;
+  transform: translateY(20px); transition: transform 0.4s;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.15);
+}
+.completion.show .completion-box { transform: translateY(0); }
+.completion-emoji { font-size: 56px; margin-bottom: 20px; }
+.completion-title { font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 14px; line-height: 1.3; }
+.completion-text { font-size: 14px; color: #6b7280; line-height: 1.75; margin-bottom: 28px; }
+.completion-btn {
+  background: #2563eb; color: #fff; border: none;
+  padding: 14px 36px; border-radius: 10px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: 'Inter', sans-serif; transition: background 0.2s;
+}
+.completion-btn:hover { background: #1d4ed8; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 1024px) {
+  .controls-row { grid-template-columns: 1fr; }
+  .metrics-grid { grid-template-columns: repeat(2,1fr); }
+}
+@media (max-width: 640px) {
+  .page { padding: 16px; }
+  .metrics-grid { grid-template-columns: 1fr; }
+  .rate-btns { grid-template-columns: repeat(3,1fr); }
+  .completion-box { padding: 32px 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="header">
+    <h1>Симулятор денежно-кредитной политики</h1>
+    <p>Управляйте ключевой ставкой и наблюдайте за влиянием на экономику в краткосрочной и долгосрочной перспективе</p>
+  </header>
+
+  <!-- HINT -->
+  <div class="hint" id="hint">
+    <span class="hint-icon">💡</span>
+    <span id="hintText"></span>
+    <button class="hint-close" onclick="dismissHint()" title="Закрыть">✕</button>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls-row">
+
+    <!-- RATE CONTROL -->
+    <div class="card">
+      <div class="card-title">Ключевая ставка</div>
+      <div class="rate-display">
+        <span class="rate-value" id="rateValue">10.0</span>
+        <span class="rate-unit">% годовых</span>
+      </div>
+      <div class="rate-slider-wrap">
+        <input type="range" class="rate-slider" id="rateSlider" min="4" max="22" step="0.5" value="10">
+      </div>
+      <div class="rate-marks">
+        <span>4%</span><span>7%</span><span>10%</span><span>13%</span><span>16%</span><span>19%</span><span>22%</span>
+      </div>
+      <div class="rate-btns">
+        <button class="rate-btn" onclick="adjRate(-2)">−2%</button>
+        <button class="rate-btn" onclick="adjRate(-1)">−1%</button>
+        <button class="rate-btn" onclick="adjRate(-0.5)">−0.5%</button>
+        <button class="rate-btn" onclick="adjRate(0.5)">+0.5%</button>
+        <button class="rate-btn" onclick="adjRate(1)">+1%</button>
+        <button class="rate-btn" onclick="adjRate(2)">+2%</button>
+      </div>
+    </div>
+
+    <!-- TIME CONTROL -->
+    <div class="card">
+      <div class="time-header">
+        <div class="card-title" style="margin-bottom:0">Управление временем</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="period-badge period-short" id="periodBadge">Краткосрочный</span>
+          <span class="month-badge">Месяц&nbsp;<span id="monthNum">0</span></span>
+        </div>
+      </div>
+      <div style="height:16px"></div>
+      <div class="speed-grid">
+        <button class="speed-btn active" id="sp1" onclick="setSpeed(1)">
+          <div class="speed-icon">⏱</div>
+          <div class="speed-label">×1</div>
+          <div class="speed-desc">Реальное время</div>
+        </button>
+        <button class="speed-btn" id="sp2" onclick="setSpeed(2)">
+          <div class="speed-icon">⚡</div>
+          <div class="speed-label">×2</div>
+          <div class="speed-desc">Среднесрочный</div>
+        </button>
+        <button class="speed-btn" id="sp3" onclick="setSpeed(3)">
+          <div class="speed-icon">🔥</div>
+          <div class="speed-label">×3</div>
+          <div class="speed-desc">Долгосрочный</div>
+        </button>
+        <button class="speed-btn" id="sp10" onclick="setSpeed(10)">
+          <div class="speed-icon">🚀</div>
+          <div class="speed-label">×10</div>
+          <div class="speed-desc">Перспектива</div>
+        </button>
+      </div>
+      <button class="play-btn" id="playBtn" onclick="togglePlay()">
+        ▶&nbsp;&nbsp;Запустить симуляцию
+      </button>
+    </div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="metrics-grid">
+
+    <div class="metric-card" id="mc-inflation" style="--c:#ef4444">
+      <style>#mc-inflation::before{background:#ef4444} #mc-inflation .metric-icon-wrap{background:#fef2f2}</style>
+      <div class="metric-top">
+        <div class="metric-icon-wrap">📈</div>
+        <span class="metric-change change-flat" id="ch-inflation">— </span>
+      </div>
+      <div class="metric-name">Инфляция</div>
+      <div class="metric-value-row">
+        <span class="metric-val" id="mv-inflation">8.0</span>
+        <span class="metric-unit">%</span>
+      </div>
+      <div class="metric-sub" id="ms-inflation">Цель: 4% · Выше целевого уровня</div>
+    </div>
+
+    <div class="metric-card" id="mc-demand">
+      <style>#mc-demand::before{background:#8b5cf6} #mc-demand .metric-icon-wrap{background:#f5f3ff}</style>
+      <div class="metric-top">
+        <div class="metric-icon-wrap">🛒</div>
+        <span class="metric-change change-flat" id="ch-demand">— </span>
+      </div>
+      <div class="metric-name">Потребительский спрос</div>
+      <div class="metric-value-row">
+        <span class="metric-val" id="mv-demand">100</span>
+        <span class="metric-unit">индекс</span>
+      </div>
+      <div class="metric-sub" id="ms-demand">Базовый уровень</div>
+    </div>
+
+    <div class="metric-card" id="mc-money">
+      <style>#mc-money::before{background:#10b981} #mc-money .metric-icon-wrap{background:#ecfdf5}</style>
+      <div class="metric-top">
+        <div class="metric-icon-wrap">💵</div>
+        <span class="metric-change change-flat" id="ch-money">— </span>
+      </div>
+      <div class="metric-name">Денежная масса</div>
+      <div class="metric-value-row">
+        <span class="metric-val" id="mv-money">100</span>
+        <span class="metric-unit">индекс</span>
+      </div>
+      <div class="metric-sub" id="ms-money">Базовый уровень</div>
+    </div>
+
+    <div class="metric-card" id="mc-credit">
+      <style>#mc-credit::before{background:#8b5cf6} #mc-credit .metric-icon-wrap{background:#f5f3ff}</style>
+      <div class="metric-top">
+        <div class="metric-icon-wrap">💳</div>
+        <span class="metric-change change-flat" id="ch-credit">— </span>
+      </div>
+      <div class="metric-name">Кредитование</div>
+      <div class="metric-value-row">
+        <span class="metric-val" id="mv-credit">100</span>
+        <span class="metric-unit">индекс</span>
+      </div>
+      <div class="metric-sub" id="ms-credit">Базовый уровень</div>
+    </div>
+
+    <div class="metric-card" id="mc-fx">
+      <style>#mc-fx::before{background:#f59e0b} #mc-fx .metric-icon-wrap{background:#fffbeb}</style>
+      <div class="metric-top">
+        <div class="metric-icon-wrap">💱</div>
+        <span class="metric-change change-flat" id="ch-fx">— </span>
+      </div>
+      <div class="metric-name">Курс национальной валюты</div>
+      <div class="metric-value-row">
+        <span class="metric-val" id="mv-fx">100</span>
+        <span class="metric-unit">индекс</span>
+      </div>
+      <div class="metric-sub" id="ms-fx">Базовый уровень</div>
+    </div>
+
+    <div class="metric-card" id="mc-exp">
+      <style>#mc-exp::before{background:#06b6d4} #mc-exp .metric-icon-wrap{background:#ecfeff}</style>
+      <div class="metric-top">
+        <div class="metric-icon-wrap">🧠</div>
+        <span class="metric-change change-flat" id="ch-exp">— </span>
+      </div>
+      <div class="metric-name">Инфляционные ожидания</div>
+      <div class="metric-value-row">
+        <span class="metric-val" id="mv-exp">10.0</span>
+        <span class="metric-unit">%</span>
+      </div>
+      <div class="metric-sub" id="ms-exp">Высокие — давят на цены</div>
+    </div>
+
+  </div>
+
+  <!-- CHART -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">Динамика инфляции, спроса и ключевой ставки</div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Инфляция</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Спрос</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#2563eb"></div>Ключевая ставка</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#d1d5db;border:1px dashed #9ca3af;border-radius:50%"></div>Цель 4%</div>
+      </div>
+    </div>
+    <canvas id="mainChart" style="width:100%;height:200px;max-height:200px"></canvas>
+  </div>
+
+  <!-- GOAL -->
+  <div class="goal-banner">
+    <strong>Цель:</strong> Снизить инфляцию до 5.5% или ниже, используя управление ключевой ставкой и временем.
+    Обратите внимание на разницу между краткосрочными и долгосрочными эффектами.
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <button class="reset-btn" onclick="resetSim()">↺ Сбросить симуляцию</button>
+  </div>
+
+</div>
+
+<!-- COMPLETION -->
+<div class="completion" id="completion">
+  <div class="completion-box">
+    <div class="completion-emoji">🎯</div>
+    <div class="completion-title">Ключевая ставка работает.<br>Но требует времени.</div>
+    <div class="completion-text">
+      В краткосрочном периоде ставка давила на издержки бизнеса. Но с течением времени
+      спрос снизился, ожидания заякорились, курс укрепился — и инфляция пришла к цели.<br><br>
+      <strong style="color:#111827">Миф рождается из остановленного времени. Истина — в долгосрочной перспективе.</strong>
+    </div>
+    <button class="completion-btn" onclick="resetSim()">↺ Сыграть ещё раз</button>
+  </div>
+</div>
+
+<script>
+// ─── INITIAL STATE (точно по App.tsx) ───
+const INIT_ECO = {
+  inflation:    8.0,
+  demand:       100,
+  moneySupply:  100,
+  credit:       100,
+  exchangeRate: 100,
+  expectations: 10.0,
+};
+
+let S = {
+  rate: 10,
+  speed: 1,
+  playing: false,
+  month: 0,
+  completed: false,
+  hasSeenLongTerm: false,
+  eco:  { ...INIT_ECO },
+  prev: { ...INIT_ECO },
+  history: [{ month: 0, inflation: 8.0, demand: 100, rate: 10 }],
+};
+
+let loopTimer = null;
+
+// ─── ECONOMY MODEL (точно по App.tsx updateEconomy) ───
+function stepEco() {
+  const prev = S.eco;
+  const keyRate = S.rate;
+  const currentMonth = S.month;
+  const targetInflation = 4.0;
+  const rateGap = keyRate - prev.inflation;
+
+  // Краткосрочный эффект (1-6 месяцев)
+  const shortTermEffect = currentMonth < 6 ? (keyRate - 10) * 0.15 : 0;
+
+  // Спрос
+  const demandEffect = -rateGap * 0.8;
+  const newDemand = clamp(prev.demand + demandEffect, 70, 110);
+  const demandPressure = (newDemand - 100) * 0.05;
+
+  // Денежная масса
+  const moneySupplyEffect = -rateGap * 0.5;
+  const newMoneySupply = clamp(prev.moneySupply + moneySupplyEffect, 70, 120);
+  const moneyPressure = (newMoneySupply - 100) * 0.04;
+
+  // Кредитование
+  const creditEffect = -rateGap * 1.5;
+  const newCredit = clamp(prev.credit + creditEffect, 60, 130);
+  const creditPressure = (newCredit - 100) * 0.05;
+
+  // Курс валюты
+  const exchangeEffect = rateGap * 0.6;
+  const newExchangeRate = clamp(prev.exchangeRate + exchangeEffect, 85, 115);
+  const importPressure = (newExchangeRate - 100) * 0.03;
+
+  // Инфляционные ожидания
+  const expectationAdjustment = (prev.inflation - prev.expectations) * 0.15;
+  const policyCredibility = currentMonth > 12 && rateGap > 2 ? -0.1 : 0;
+  const newExpectations = clamp(prev.expectations + expectationAdjustment + policyCredibility, 3, 15);
+  const expectationPressure = (newExpectations - targetInflation) * 0.2;
+
+  // Итоговая инфляция
+  const inflationChange =
+    shortTermEffect +
+    demandPressure +
+    moneyPressure +
+    creditPressure +
+    importPressure +
+    expectationPressure +
+    (prev.inflation - targetInflation) * 0.1;
+
+  const newInflation = clamp(prev.inflation + inflationChange, 2, 15);
+
+  S.prev = { ...S.eco };
+  S.eco = {
+    inflation:    newInflation,
+    demand:       newDemand,
+    moneySupply:  newMoneySupply,
+    credit:       newCredit,
+    exchangeRate: newExchangeRate,
+    expectations: newExpectations,
+  };
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ─── GAME LOOP ───
+function startLoop() {
+  stopLoop();
+  loopTimer = setInterval(tick, 1000 / S.speed);
+}
+function stopLoop() { if (loopTimer) { clearInterval(loopTimer); loopTimer = null; } }
+
+function tick() {
+  if (!S.playing || S.completed) return;
+  S.month++;
+  stepEco();
+  // history (точно по App.tsx, последние 50)
+  const pt = { month: S.month, inflation: S.eco.inflation, demand: S.eco.demand, rate: S.rate };
+  const idx = S.history.findIndex(p => p.month === S.month);
+  if (idx >= 0) S.history[idx] = pt;
+  else { S.history.push(pt); if (S.history.length > 50) S.history.shift(); }
+  render();
+  checkHints();
+  checkCompletion();
+}
+
+// ─── HINTS (точно по App.tsx useEffect) ───
+function checkHints() {
+  const m = S.month, ts = S.speed;
+  if (m === 5 && ts === 1)
+    showHint('Вы видите краткосрочный эффект. Ускорьте время, чтобы увидеть долгосрочные последствия.');
+  else if (m === 10 && ts < 3)
+    showHint('Спрос реагирует медленнее, чем ставка. Попробуйте ускорить время до ×3 или ×5.');
+  else if (m === 15 && S.eco.expectations > 6)
+    showHint('Ожидания — ключевой нематериальный фактор инфляции. Они меняются постепенно при стабильной политике.');
+  else if (m > 20 && ts >= 3 && !S.hasSeenLongTerm) {
+    showHint('Высокая ставка — это сигнал рынку, а не наказание. Она помогает «заякорить» ожидания.');
+    S.hasSeenLongTerm = true;
+  }
+}
+
+function showHint(msg) {
+  document.getElementById('hintText').textContent = msg;
+  document.getElementById('hint').classList.add('visible');
+}
+function dismissHint() {
+  document.getElementById('hint').classList.remove('visible');
+}
+
+// ─── COMPLETION (точно по App.tsx) ───
+function checkCompletion() {
+  if (!S.completed && S.month > 30 && S.eco.inflation < 5.5 && S.speed >= 3) {
+    S.completed = true;
+    S.playing = false;
+    stopLoop();
+    const pb = document.getElementById('playBtn');
+    pb.textContent = '▶  Запустить симуляцию';
+    pb.classList.remove('playing');
+    setTimeout(() => document.getElementById('completion').classList.add('show'), 700);
+  }
+}
+
+// ─── RENDER ───
+function fmt(v, d) { return (+v).toFixed(d != null ? d : 1); }
+
+function setChange(id, delta) {
+  const el = document.getElementById('ch-' + id);
+  if (Math.abs(delta) < 0.005) {
+    el.textContent = '— ';
+    el.className = 'metric-change change-flat';
+    return;
+  }
+  const up = delta > 0;
+  el.textContent = (up ? '▲ +' : '▼ ') + fmt(delta, 2);
+  el.className = 'metric-change ' + (up ? 'change-up' : 'change-down');
+}
+
+function render() {
+  const e = S.eco, p = S.prev, m = S.month;
+
+  // Инфляция
+  document.getElementById('mv-inflation').textContent = fmt(e.inflation);
+  document.getElementById('ms-inflation').textContent =
+    e.inflation > 5.5 ? 'Цель: 4% · Выше целевого уровня' :
+    e.inflation > 4.2 ? 'Цель: 4% · Приближается к цели' :
+                        'Цель: 4% · ✓ У целевого уровня';
+  setChange('inflation', e.inflation - p.inflation);
+
+  // Спрос
+  document.getElementById('mv-demand').textContent = fmt(e.demand, 0);
+  document.getElementById('ms-demand').textContent =
+    e.demand < 88 ? '↓ Снижается — кредит дорожает' :
+    e.demand > 102 ? '↑ Выше базового уровня' : '→ Умеренный';
+  setChange('demand', e.demand - p.demand);
+
+  // Денежная масса
+  document.getElementById('mv-money').textContent = fmt(e.moneySupply, 0);
+  document.getElementById('ms-money').textContent =
+    e.moneySupply < 88 ? '↓ Сжимается' :
+    e.moneySupply > 102 ? '↑ Растёт' : '→ Стабильная';
+  setChange('money', e.moneySupply - p.moneySupply);
+
+  // Кредитование
+  document.getElementById('mv-credit').textContent = fmt(e.credit, 0);
+  document.getElementById('ms-credit').textContent =
+    e.credit < 80 ? '↓ Существенное сжатие' :
+    e.credit < 95 ? '↓ Снижается' :
+    e.credit > 105 ? '↑ Кредитный бум' : '→ Умеренное';
+  setChange('credit', e.credit - p.credit);
+
+  // Курс
+  document.getElementById('mv-fx').textContent = fmt(e.exchangeRate, 0);
+  document.getElementById('ms-fx').textContent =
+    e.exchangeRate > 104 ? '↑ Укрепление → импорт дешевеет' :
+    e.exchangeRate < 96  ? '↓ Ослабление' : '→ Стабильный';
+  setChange('fx', e.exchangeRate - p.exchangeRate);
+
+  // Ожидания
+  document.getElementById('mv-exp').textContent = fmt(e.expectations);
+  document.getElementById('ms-exp').textContent =
+    e.expectations < 5  ? '✓ Заякорены — давление снижается' :
+    e.expectations < 7  ? 'Умеренные — стабилизируются' :
+                          'Высокие — давят на цены';
+  setChange('exp', e.expectations - p.expectations);
+
+  // Rate display
+  const rv = document.getElementById('rateValue');
+  rv.textContent = fmt(S.rate);
+  rv.className = 'rate-value' + (S.rate >= 16 ? ' high' : S.rate >= 12 ? ' mid' : '');
+
+  // Month / period
+  document.getElementById('monthNum').textContent = m;
+  const pb = document.getElementById('periodBadge');
+  if (m <= 6) {
+    pb.className = 'period-badge period-short'; pb.textContent = 'Краткосрочный';
+  } else if (m <= 24) {
+    pb.className = 'period-badge period-mid'; pb.textContent = 'Среднесрочный';
+  } else {
+    pb.className = 'period-badge period-long'; pb.textContent = 'Долгосрочный';
+  }
+
+  drawChart();
+}
+
+// ─── CHART ───
+let chart = null;
+
+function initChart() {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Инфляция',
+          data: [],
+          borderColor: '#ef4444',
+          backgroundColor: 'rgba(239,68,68,0.07)',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: true,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Спрос',
+          data: [],
+          borderColor: '#8b5cf6',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: false,
+          yAxisID: 'y2',
+        },
+        {
+          label: 'Ключевая ставка',
+          data: [],
+          borderColor: '#2563eb',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+          borderDash: [4, 3],
+          yAxisID: 'y',
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#fff',
+          borderColor: '#e5e7eb',
+          borderWidth: 1,
+          titleColor: '#6b7280',
+          bodyColor: '#111827',
+          titleFont: { family: 'Inter', size: 11 },
+          bodyFont: { family: 'Inter', size: 12 },
+          callbacks: {
+            title: items => 'Месяц ' + items[0].label,
+            label: item => {
+              const u = item.datasetIndex === 1 ? '' : '%';
+              return item.dataset.label + ': ' + item.parsed.y.toFixed(1) + u;
+            }
+          },
+          padding: 10,
+          cornerRadius: 8,
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#9ca3af', font: { size: 11 }, maxTicksLimit: 10 },
+          grid: { color: '#f3f4f6' },
+          border: { color: '#e5e7eb' },
+        },
+        y: {
+          position: 'left',
+          min: 0, max: 22,
+          ticks: { color: '#9ca3af', font: { size: 11 }, stepSize: 4, callback: v => v + '%' },
+          grid: { color: '#f3f4f6' },
+          border: { color: '#e5e7eb', dash: [3,3] },
+        },
+        y2: {
+          position: 'right',
+          min: 60, max: 140,
+          ticks: { color: '#c4b5fd', font: { size: 11 }, stepSize: 20 },
+          grid: { display: false },
+          border: { display: false },
+        },
+      }
+    },
+    plugins: [{
+      id: 'targetLine',
+      beforeDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        const y = scales.y.getPixelForValue(4);
+        ctx.save();
+        ctx.setLineDash([6, 5]);
+        ctx.strokeStyle = '#d1d5db';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '11px Inter';
+        ctx.fillText('Цель 4%', chartArea.right - 54, y - 5);
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+function drawChart() {
+  if (!chart) return;
+  chart.data.labels = S.history.map(d => d.month);
+  chart.data.datasets[0].data = S.history.map(d => d.inflation);
+  chart.data.datasets[1].data = S.history.map(d => d.demand);
+  chart.data.datasets[2].data = S.history.map(d => d.rate);
+  chart.update('none');
+}
+
+// ─── CONTROLS ───
+document.getElementById('rateSlider').addEventListener('input', function() {
+  S.rate = parseFloat(this.value);
+  render();
+});
+
+function adjRate(d) {
+  S.rate = clamp(S.rate + d, 4, 22);
+  document.getElementById('rateSlider').value = S.rate;
+  render();
+}
+
+function setSpeed(v) {
+  S.speed = v;
+  [1,2,3,10].forEach(s => document.getElementById('sp'+s).classList.toggle('active', s === v));
+  if (S.playing) startLoop();
+}
+
+function togglePlay() {
+  S.playing = !S.playing;
+  const btn = document.getElementById('playBtn');
+  if (S.playing) {
+    btn.innerHTML = '⏸&nbsp;&nbsp;Пауза';
+    btn.classList.add('playing');
+    startLoop();
+  } else {
+    btn.innerHTML = '▶&nbsp;&nbsp;Запустить симуляцию';
+    btn.classList.remove('playing');
+    stopLoop();
+  }
+}
+
+function resetSim() {
+  stopLoop();
+  S = {
+    rate: 10, speed: 1, playing: false, month: 0,
+    completed: false, hasSeenLongTerm: false,
+    eco:  { ...INIT_ECO }, prev: { ...INIT_ECO },
+    history: [{ month: 0, inflation: 8.0, demand: 100, rate: 10 }],
+  };
+  document.getElementById('rateSlider').value = 10;
+  document.getElementById('playBtn').innerHTML = '▶&nbsp;&nbsp;Запустить симуляцию';
+  document.getElementById('playBtn').classList.remove('playing');
+  [1,2,3,10].forEach(s => document.getElementById('sp'+s).classList.toggle('active', s === 1));
+  document.getElementById('completion').classList.remove('show');
+  dismissHint();
+  render();
+}
+
+// ─── INIT ───
+initChart();
+render();
+</script>
+</body>
+</html>
